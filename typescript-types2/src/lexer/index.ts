@@ -46,12 +46,19 @@ export type Tokenize<
   Input extends string,
   Tokens extends Token[] = []
 > = SkipWhiteSpace<Input> extends infer Input extends string
-  ? Input extends `${keyof StaticTokenMap}${string}`
+  ? Input extends `${keyof OperatorMap}${string}`
+    ? ReadOperator<Input> extends ReadResult<
+        infer Rest,
+        infer Operator extends keyof OperatorMap
+      >
+      ? Tokenize<Rest, [...Tokens, OperatorMap[Operator]]>
+      : never
+    : Input extends `${keyof KeywordsMap}${string}`
     ? ReadKeyword<Input> extends ReadResult<
         infer Rest,
-        infer Keyword extends keyof StaticTokenMap
+        infer Keyword extends keyof KeywordsMap
       >
-      ? Tokenize<Rest, [...Tokens, StaticTokenMap[Keyword]]>
+      ? Tokenize<Rest, [...Tokens, KeywordsMap[Keyword]]>
       : never
     : IsLetter<Input> extends true
     ? ReadIdentifier<Input> extends ReadResult<infer Rest, infer Identifier>
@@ -62,7 +69,7 @@ export type Tokenize<
       ? Tokenize<Rest, [...Tokens, Token<TokenType.Int, Integer>]>
       : never
     : Input extends ""
-    ? [...Tokens, StaticTokenMap["\0"]]
+    ? [...Tokens, OperatorMap["\0"]]
     : [...Tokens, IllegalToken<Input>]
   : never;
 
@@ -119,7 +126,7 @@ type IllegalToken<IllegalLiteral extends string> = Token<
  * For most tokens, this works as they are always the same.
  * Exceptions are {@link TokenType.Ident} and the like.
  */
-type StaticTokenMap = {
+type OperatorMap = {
   "\0": Token<TokenType.Eof, "\0">;
   "=": Token<TokenType.Assign, "=">;
   "+": Token<TokenType.Plus, "+">;
@@ -137,6 +144,9 @@ type StaticTokenMap = {
   ")": Token<TokenType.RParen, ")">;
   "{": Token<TokenType.LSquirly, "{">;
   "}": Token<TokenType.RSquirly, "}">;
+};
+
+type KeywordsMap = {
   fn: Token<TokenType.Function, "fn">;
   let: Token<TokenType.Let, "let">;
   true: Token<TokenType.True, "true">;
@@ -145,7 +155,6 @@ type StaticTokenMap = {
   else: Token<TokenType.Else, "else">;
   return: Token<TokenType.Return, "return">;
 };
-
 type Whitespace = " " | "\t" | "\r" | "\n";
 
 type SkipWhiteSpace<Input extends string> =
@@ -184,10 +193,18 @@ type ReadIdentifier<
 type ReadKeyword<
   Input extends string,
   Keyword extends string = "",
-  Keywords extends string = keyof StaticTokenMap
+  Keywords extends string = keyof KeywordsMap
 > = Input extends `${infer Char extends FirstChar<Keywords>}${infer Rest}`
   ? ReadKeyword<Rest, `${Keyword}${Char}`, StartsWith<Keywords, Char>>
   : ReadResult<Input, Keyword>;
+
+type ReadOperator<Input extends string> = Input extends `!=${infer Rest}`
+  ? ReadResult<Rest, "!=">
+  : Input extends `==${infer Rest}`
+  ? ReadResult<Rest, "==">
+  : Input extends `${infer Operator extends keyof OperatorMap}${infer Rest}`
+  ? ReadResult<Rest, Operator>
+  : never;
 
 type ReadInt<
   Input extends string,

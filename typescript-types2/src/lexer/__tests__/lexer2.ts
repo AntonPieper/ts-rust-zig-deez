@@ -6,10 +6,18 @@ export type Equal<X, Y> = (<T>() => T extends X ? 1 : 2) extends <
 >() => T extends Y ? 1 : 2
   ? true
   : false;
+type Pop<T extends unknown[]> = T extends [unknown, ...infer Rest]
+  ? Rest
+  : never;
+type Check<A extends unknown[], B extends unknown[]> = B["length"] extends 0
+  ? true
+  : Equal<A[0], B[0]> extends true
+  ? Check<Pop<A>, Pop<B>>
+  : { expected: B[0]; got: A[0] };
 
 /** test GetNextToken */
 export namespace TestGetNextTokenToken {
-  type Input = `=+(){},;`;
+  type Input = `=+(){},;!=`;
   export type Tokenized = Tokenize<Input>;
 
   type Tokens = [
@@ -21,10 +29,11 @@ export namespace TestGetNextTokenToken {
     { type: TokenType.RSquirly; literal: "}" },
     { type: TokenType.Comma; literal: "," },
     { type: TokenType.Semicolon; literal: ";" },
+    { type: TokenType.NotEqual; literal: "!=" },
     { type: TokenType.Eof; literal: "\0" }
   ];
 
-  export type Result = Assert<Equal<Tokenized, Tokens>>;
+  export type Result = Assert<Check<Tokenized, Tokens>>;
 }
 
 /** test GetNextToken complete */
@@ -128,5 +137,5 @@ export namespace TestGetNextTokenComplete {
 
     { type: TokenType.Eof; literal: "\0" }
   ];
-  export type Result = Assert<Equal<Tokenized, Tokens>>;
+  export type Result = Assert<Check<Tokenized, Tokens>>;
 }
